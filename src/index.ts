@@ -3,16 +3,10 @@ import { path as ffmpegPath } from "@ffmpeg-installer/ffmpeg";
 import * as fs from "fs";
 import * as path from "path";
 import { translateVideo } from "./translate_video";
+import { ensureDirectoryExists } from "./util/file";
 
 // FFmpeg 경로 설정
 ffmpeg.setFfmpegPath(ffmpegPath);
-
-// 디렉토리 생성 함수
-function ensureDirectoryExists(directory: string): void {
-  if (!fs.existsSync(directory)) {
-    fs.mkdirSync(directory, { recursive: true });
-  }
-}
 
 // 메인 함수
 async function main() {

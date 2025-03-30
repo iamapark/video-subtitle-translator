@@ -7,19 +7,21 @@
     "npm": "10.9.2"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "translate_video": "ts-node src/index.ts",
-    "sample": "ts-node src/sample.ts",
-    "merge_subtitle": "ts-node src/merge_subtitle.ts"
+    "translate": "ts-node src/index.ts",
+    "trim": "ts-node src/trim_video.ts",
+    "merge_subtitle": "ts-node src/merge_subtitle.ts",
+    "translate_srt": "ts-node src/translate_srt.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2",
     "@google-cloud/speech": "^6.7.1",
     "@google-cloud/storage": "^7.15.2",
     "@google-cloud/translate": "^8.5.1",
+    "@google/generative-ai": "^0.24.0",
     "@types/fluent-ffmpeg": "^2.1.27",
     "@types/node": "^22.13.10",
     "dotenv": "^16.4.7",
