@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
-import { translateSegmentsWithGemini } from "./gemini_translator";
-import { createSRTFile } from "./translate_video";
+import { translateSegmentsWithGemini } from "./libs/translator/gemini_translator";
+import { createSRTFile } from "./libs/srt";
 import { SubtitleSegment } from "./types";
 import { splitSegmentsIntoChunks } from "./segment_utils"; // 유틸리티 함수 임포트
 
@@ -103,17 +103,15 @@ async function main() {
         }개 세그먼트) 번역 시작...`
       );
       return translateSegmentsWithGemini(chunk)
-        .then((translatedChunk) => {
+        .then((translatedChunk: SubtitleSegment[]) => {
           logWithTimestamp(`청크 ${index + 1}/${chunks.length} 번역 완료.`);
           return translatedChunk;
         })
-        .catch((error) => {
+        .catch((error: Error) => {
           console.error(
             `청크 ${index + 1}/${chunks.length} 번역 중 오류 발생:`,
             error
           );
-          // 오류 발생 시 해당 청크는 비워두거나, 원본을 반환하는 등의 처리 가능
-          // 여기서는 빈 배열 반환
           return [];
         });
     });

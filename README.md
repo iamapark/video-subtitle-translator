@@ -8,6 +8,16 @@ A tool that transcribes speech from video files, generates subtitles, and transl
 npm install
 ```
 
+## Build
+
+The project uses TypeScript and needs to be built before running in production mode:
+
+```bash
+npm run build
+```
+
+This will compile TypeScript files into JavaScript in the `dist` directory.
+
 ## Environment Setup
 
 1. Copy the `.env.sample` file to `.env`:
@@ -102,18 +112,32 @@ Example:
 npm run merge_subtitle "./input/video.mp4" "./subtitles/subs.srt" "./output/video_with_subs.mp4"
 ```
 
+### 4. SRT File Translation
+
+Translate an existing SRT subtitle file:
+
+```bash
+npm run translate_srt <input_srt_file>
+```
+
+Example:
+
+```bash
+npm run translate_srt "./subtitles/original.srt"
+```
+
 ## Processing Large Videos
 
 For videos longer than 10 minutes, the tool automatically:
 
 1. Splits the video into 10-minute chunks
-2. Processes each chunk separately
+2. Processes each chunk in parallel using Worker Threads
 3. Combines the results
 
 This approach:
 
 - Reduces memory usage
-- Improves stability
+- Improves stability and performance through parallel processing
 - Allows for better error handling
 - Shows detailed progress for each chunk
 

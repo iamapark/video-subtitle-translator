@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as dotenv from "dotenv";
+import { Worker } from "worker_threads";
 import { mergeSubtitles } from "./merge_subtitle";
 import { translateSegmentsWithGemini } from "./libs/translator/gemini_translator";
 import { SubtitleSegment } from "./types";
@@ -18,6 +19,34 @@ import { trimVideo, getVideoDuration } from "./trim_video";
 
 // 환경 변수 로드
 dotenv.config();
+
+// Worker Thread 수 설정
+const nThread = 3; // 동시에 처리할 최대 worker 수
+
+// Worker 생성 함수
+function createWorker(workerData: any): Promise<{
+  success: boolean;
+  chunkIndex: number;
+  segments?: SubtitleSegment[];
+  error?: string;
+}> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(
+      path.join(__dirname, "workers", "video_chunk_worker.js"),
+      {
+        workerData,
+      }
+    );
+
+    worker.on("message", resolve);
+    worker.on("error", reject);
+    worker.on("exit", (code) => {
+      if (code !== 0) {
+        reject(new Error(`Worker stopped with exit code ${code}`));
+      }
+    });
+  });
+}
 
 // 메인 처리 함수
 export async function translateVideo(
@@ -41,88 +70,57 @@ export async function translateVideo(
       )}초`
     );
     logWithTimestamp(
-      `${CHUNK_MINUTES}분 단위로 분할 처리 (총 ${numChunks}개 청크)`
+      `${CHUNK_MINUTES}분 단위로 분할 처리 (총 ${numChunks}개 청크, ${nThread}개의 worker 사용)`
     );
 
-    let allTranslatedSegments: SubtitleSegment[] = [];
-    let timeOffset = 0;
-
-    // 각 청크 처리
-    for (let i = 0; i < numChunks; i++) {
+    // 청크 처리를 위한 배열 준비
+    const chunks = Array.from({ length: numChunks }, (_, i) => {
       const chunkStart = i * CHUNK_MINUTES;
       const chunkEnd = Math.min(
         (i + 1) * CHUNK_MINUTES,
         Math.ceil(duration / 60)
       );
-      const timeRange = `${chunkStart}~${chunkEnd}`;
+      return {
+        chunkIndex: i,
+        timeRange: `${chunkStart}~${chunkEnd}`,
+        timeOffset: i * CHUNK_SECONDS,
+      };
+    });
 
-      logWithTimestamp(`청크 ${i + 1}/${numChunks} 처리 중... (${timeRange})`);
-
-      // 비디오 청크 생성
-      const chunkVideoPath = path.join(workDir, `chunk_${i + 1}.mp4`);
-      await trimVideo(inputVideoPath, chunkVideoPath, timeRange);
-
-      // 오디오 추출 (mp4 -> wav)
-      logWithTimestamp(`청크 ${i + 1}: 오디오 추출 중...`);
-      const chunkAudioPath = path.join(workDir, `chunk_${i + 1}.wav`);
-      await extractAudio(chunkVideoPath, chunkAudioPath);
-
-      // 음성 인식 (wav -> json)
-      logWithTimestamp(`청크 ${i + 1}: 음성 인식 중...`);
-      const segments = await transcribeAudio(chunkAudioPath);
-      const splitResult = splitSegments(segments);
-
-      // 시간 오프셋 적용
-      const offsetSegments = splitResult.map((segment) => ({
-        ...segment,
-        start: segment.start + timeOffset,
-        end: segment.end + timeOffset,
-      }));
-
-      // 음성 인식 결과 저장
-      const transcriptionPath = path.join(
-        workDir,
-        `transcription_${i + 1}.json`
-      );
-      logWithTimestamp(`청크 ${i + 1}: 음성 인식 결과 저장 중...`);
-      saveTranscriptionResult(offsetSegments, transcriptionPath);
-
-      // 음성 인식 결과 로드 및 번역
-      logWithTimestamp(`청크 ${i + 1}: 음성 인식 결과 로드 중...`);
-      const transcriptionResult = loadTranscriptionResult(transcriptionPath);
-      logWithTimestamp(
-        `청크 ${i + 1}: 로드된 음성 인식 세그먼트 수: ${
-          transcriptionResult.length
-        }`
+    // Worker pool을 사용한 병렬 처리
+    const results: SubtitleSegment[][] = [];
+    for (let i = 0; i < chunks.length; i += nThread) {
+      const chunkGroup = chunks.slice(i, i + nThread);
+      const workerPromises = chunkGroup.map((chunk) =>
+        createWorker({
+          inputVideoPath,
+          workDir,
+          chunkIndex: chunk.chunkIndex,
+          totalChunks: numChunks,
+          timeRange: chunk.timeRange,
+          timeOffset: chunk.timeOffset,
+        })
       );
 
-      // 세그먼트를 번역
-      if (transcriptionResult.length > 0) {
-        logWithTimestamp(`청크 ${i + 1}: 번역 시작...`);
-        const translatedSegments = await translateSegmentsWithGemini(
-          transcriptionResult
-        ).catch((error) => {
-          console.error(`청크 ${i + 1}: 번역 중 오류 발생:`, error);
-          return [];
-        });
+      const chunkResults = await Promise.all(workerPromises);
 
-        allTranslatedSegments =
-          allTranslatedSegments.concat(translatedSegments);
-        logWithTimestamp(
-          `청크 ${i + 1}: 번역 완료. 현재까지 총 번역된 세그먼트 수: ${
-            allTranslatedSegments.length
-          }`
-        );
+      // 에러 체크 및 결과 처리
+      for (const result of chunkResults) {
+        if (!result.success) {
+          throw new Error(
+            `Worker error in chunk ${result.chunkIndex + 1}: ${result.error}`
+          );
+        }
+        if (result.segments) {
+          results[result.chunkIndex] = result.segments;
+        }
       }
 
-      // 임시 파일 정리
-      fs.unlinkSync(chunkVideoPath);
-      fs.unlinkSync(chunkAudioPath);
-      fs.unlinkSync(transcriptionPath);
-
-      // 다음 청크의 시간 오프셋 업데이트
-      timeOffset += CHUNK_SECONDS;
+      logWithTimestamp(`${i + chunkGroup.length}/${numChunks} 청크 처리 완료`);
     }
+
+    // 모든 번역된 세그먼트를 순서대로 합치기
+    const allTranslatedSegments = results.flat();
 
     // 병합된 번역 결과를 사용하여 자막 파일 생성
     logWithTimestamp("최종 자막 파일 생성 중...");

@@ -7,10 +7,11 @@
     "npm": "10.9.2"
   },
   "scripts": {
-    "translate": "ts-node src/index.ts",
-    "trim": "ts-node src/trim_video.ts",
-    "merge_subtitle": "ts-node src/merge_subtitle.ts",
-    "translate_srt": "ts-node src/translate_srt.ts"
+    "build": "tsc",
+    "translate": "npm run build && node dist/index.js",
+    "trim": "npm run build && node dist/trim_video.js",
+    "merge_subtitle": "npm run build && node dist/merge_subtitle.js",
+    "translate_srt": "npm run build && node dist/translate_srt.js"
   },
   "keywords": [],
   "author": "",
