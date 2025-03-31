@@ -32,11 +32,31 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ensureDirectoryExists = ensureDirectoryExists;
+exports.removeDirectoryRecursive = removeDirectoryRecursive;
 const fs = __importStar(require("fs"));
+const path_1 = __importDefault(require("path"));
 function ensureDirectoryExists(directory) {
     if (!fs.existsSync(directory)) {
         fs.mkdirSync(directory, { recursive: true });
+    }
+}
+// 디렉토리와 그 내용을 재귀적으로 삭제하는 함수
+function removeDirectoryRecursive(dirPath) {
+    if (fs.existsSync(dirPath)) {
+        fs.readdirSync(dirPath).forEach((file) => {
+            const curPath = path_1.default.join(dirPath, file);
+            if (fs.lstatSync(curPath).isDirectory()) {
+                removeDirectoryRecursive(curPath);
+            }
+            else {
+                fs.unlinkSync(curPath);
+            }
+        });
+        fs.rmdirSync(dirPath);
     }
 }

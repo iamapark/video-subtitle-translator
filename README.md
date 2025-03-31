@@ -2,6 +2,43 @@
 
 A tool that transcribes speech from video files, generates subtitles, and translates them into different languages. It supports video trimming, subtitle generation, translation, and subtitle embedding.
 
+## Prerequisites
+
+### macOS
+
+Install required system dependencies using Homebrew:
+
+```bash
+# Install FFmpeg for video processing
+brew install ffmpeg
+
+# Install yt-dlp for YouTube video downloading
+brew install yt-dlp
+```
+
+### Linux (Ubuntu/Debian)
+
+```bash
+# Install FFmpeg
+sudo apt update
+sudo apt install ffmpeg
+
+# Install yt-dlp
+sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+sudo chmod a+rx /usr/local/bin/yt-dlp
+```
+
+### Windows
+
+1. Install FFmpeg:
+
+   - Download from [FFmpeg official website](https://ffmpeg.org/download.html)
+   - Add FFmpeg to system PATH
+
+2. Install yt-dlp:
+   - Install using pip: `pip install yt-dlp`
+   - Or download from [yt-dlp releases](https://github.com/yt-dlp/yt-dlp/releases)
+
 ## Installation
 
 ```bash
@@ -55,7 +92,28 @@ cp .env.sample .env
 
 ## Usage
 
-### 1. Video Translation
+### 1. YouTube Video Download
+
+Download a YouTube video in highest quality:
+
+```bash
+npm run download_youtube <youtube_url>
+```
+
+Example:
+
+```bash
+npm run download_youtube https://www.youtube.com/watch?v=example
+```
+
+This command will:
+
+1. Download the highest quality video stream
+2. Download the highest quality audio stream
+3. Merge them into a single MP4 file
+4. Save the result in the `output` directory
+
+### 2. Video Translation
 
 Transcribe speech from a video, translate it, and generate subtitles:
 
@@ -76,7 +134,7 @@ This command will:
 3. Translate the text
 4. Generate subtitle file
 
-### 2. Video Trimming
+### 3. Video Trimming
 
 Trim a video file to a specific time range:
 
@@ -98,7 +156,7 @@ Parameters:
 
 - `time_range`: Format is "start~end" in minutes (e.g., "3~5" or "3~")
 
-### 3. Subtitle Embedding
+### 4. Subtitle Embedding
 
 Embed subtitle file into a video:
 
@@ -112,7 +170,7 @@ Example:
 npm run merge_subtitle "./input/video.mp4" "./subtitles/subs.srt" "./output/video_with_subs.mp4"
 ```
 
-### 4. SRT File Translation
+### 5. SRT File Translation
 
 Translate an existing SRT subtitle file:
 

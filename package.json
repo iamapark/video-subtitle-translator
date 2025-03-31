@@ -11,7 +11,8 @@
     "translate": "npm run build && node dist/index.js",
     "trim": "npm run build && node dist/trim_video.js",
     "merge_subtitle": "npm run build && node dist/merge_subtitle.js",
-    "translate_srt": "npm run build && node dist/translate_srt.js"
+    "translate_srt": "npm run build && node dist/translate_srt.js",
+    "download_youtube": "npm run build && node dist/download_youtube.js"
   },
   "keywords": [],
   "author": "",
