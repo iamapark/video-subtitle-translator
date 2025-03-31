@@ -1,81 +1,8 @@
-import * as ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
-import { exec } from "child_process";
-import ffmpeg from "fluent-ffmpeg";
 import * as path from "path";
-import { promisify } from "util";
 import { ensureDirectoryExists, removeDirectoryRecursive } from "./util/file";
 import { logWithTimestamp } from "./util/logger";
-
-// FFmpeg 설정
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
-
-const execAsync = promisify(exec);
-
-interface VideoInfo {
-  title: string;
-  formats: Array<{
-    format_id: string;
-    ext: string;
-    filesize: number;
-    vcodec: string;
-    acodec: string;
-  }>;
-}
-
-async function getVideoInfo(url: string): Promise<VideoInfo> {
-  try {
-    const { stdout } = await execAsync(`yt-dlp -j "${url}"`);
-    return JSON.parse(stdout);
-  } catch (error) {
-    throw new Error(`Failed to get video info: ${error}`);
-  }
-}
-
-async function downloadStream(
-  url: string,
-  format: string,
-  output: string
-): Promise<void> {
-  try {
-    await execAsync(`yt-dlp -f ${format} -o "${output}" "${url}"`);
-  } catch (error) {
-    throw new Error(`Failed to download stream: ${error}`);
-  }
-}
-
-async function mergeStreams(
-  videoPath: string,
-  audioPath: string,
-  outputPath: string
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    ffmpeg()
-      .input(videoPath)
-      .input(audioPath)
-      .outputOptions(["-c:v copy", "-c:a aac", "-strict experimental"])
-      .output(outputPath)
-      .on("start", () => {
-        logWithTimestamp("Started merging video and audio...");
-      })
-      .on("progress", (progress) => {
-        if (progress.percent) {
-          process.stdout.write(
-            `\rMerging progress: ${progress.percent.toFixed(2)}%`
-          );
-        }
-      })
-      .on("end", () => {
-        process.stdout.write("\n");
-        logWithTimestamp("Merge completed successfully");
-        resolve();
-      })
-      .on("error", (err) => {
-        logWithTimestamp(`Error during merge: ${err.message}`);
-        reject(new Error(`Failed to merge streams: ${err.message}`));
-      })
-      .run();
-  });
-}
+import { getVideoInfo, downloadStream } from "./libs/yt-dlp";
+import { mergeStreams } from "./libs/ffmpeg";
 
 async function downloadYouTubeVideo(url: string): Promise<void> {
   let tempVideoPath: string | null = null;
